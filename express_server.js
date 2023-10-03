@@ -15,13 +15,12 @@ const generateRandomString = function () {
 
 app.set("view engine", "ejs");
 app.use(cookieParser());
+app.use(express.urlencoded({ extended: true }));
 
 const urlDatabase = {
   "b2xVn2": "http://www.lighthouselabs.ca",
   "9sm5xK": "http://www.google.com"
 };
-
-app.use(express.urlencoded({ extended: true }));
 
 app.get("/", (req, res) => {
   res.send("Hello!");
@@ -29,6 +28,7 @@ app.get("/", (req, res) => {
 
 //endpoint to handle a post request to /login
 app.post("/login", (req, res) => {
+  //input form body is saved in req.cookie as the form name "username"
   res.cookie("username", req.body.username);
   res.redirect("/urls");
 })
