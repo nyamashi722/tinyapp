@@ -33,6 +33,12 @@ app.post("/login", (req, res) => {
   res.redirect("/urls");
 })
 
+//logout endpoint to clear username cookie
+app.post("/logout", (req, res) => {
+  res.clearCookie("username");
+  res.redirect("/urls")
+})
+
 //make a get request to main page of URLs list
 app.get("/urls", (req, res) => {
   const templateVars = { 
