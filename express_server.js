@@ -47,6 +47,15 @@ app.post("/urls", (req, res) => {
   res.redirect(`/urls/${randomString}`);
 });
 
+//make a post request to update the url
+//redirect client to /urls page to see updated url
+//update the database so that the id will be paired with the updated url
+app.post("/urls/:id", (req, res) => {
+  urlDatabase[req.params.id] = req.body.newURL;
+  res.redirect("/urls")
+})
+
+
 //make a get request to page to create a new tiny link
 app.get("/urls/new", (req, res) => {
   res.render("urls_new");
