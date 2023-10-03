@@ -25,6 +25,12 @@ app.get("/", (req, res) => {
   res.send("Hello!");
 });
 
+//endpoint to handle a post request to /login
+app.post("/login", (req, res) => {
+  res.cookie("username", req.body.username);
+  res.redirect("/urls");
+})
+
 //make a get request to main page of URLs list
 app.get("/urls", (req, res) => {
   const templateVars = { urls: urlDatabase };
