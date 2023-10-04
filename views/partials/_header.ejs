@@ -16,8 +16,8 @@
       <div class="navbar-nav">
         <a class="nav-item nav-link" href="/urls">My URLs</a>
         <a class="nav-item nav-link" href="/urls/new">Create New URL</a>
-        <% if(username) { %>
-          <a>Loggin in as: <%= username%><a/>
+        <% if(user) { %>
+          <a>Loggin in as: <%= user.email%></a>
             <a>
               <form class="form-inline" action="/logout" method="POST">
                 <div class="form-group mb-2">
