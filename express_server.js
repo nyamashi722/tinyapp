@@ -22,56 +22,31 @@ const urlDatabase = {
   "9sm5xK": "http://www.google.com"
 };
 
+const users = {
+  userRandomID: {
+    id: "userRandomID",
+    email: "user@example.com",
+    password: "purple-monkey-dinosaur",
+  },
+  user2RandomID: {
+    id: "user2RandomID",
+    email: "user2@example.com",
+    password: "dishwasher-funk",
+  },
+}
+
 app.get("/", (req, res) => {
   res.send("Hello!");
 });
 
-//endpoint to handle a post request to /login
-app.post("/login", (req, res) => {
-  //input form body is saved in req.cookie as the form name "username"
-  res.cookie("username", req.body.username);
-  res.redirect("/urls");
-})
-
-//logout endpoint to clear username cookie
-app.post("/logout", (req, res) => {
-  res.clearCookie("username");
-  res.redirect("/urls")
-})
-
 //make a get request to main page of URLs list
 app.get("/urls", (req, res) => {
-  const templateVars = { 
+  const templateVars = {
     urls: urlDatabase,
     username: req.cookies["username"]
-   };
+  };
   res.render("urls_index", templateVars);
 });
-
-//POST route that removes a URL resource
-app.post("/urls/:id/delete", (req, res) => {
-  //extract id we need to delete from the url of the request
-  const { id } = req.params;
-  delete urlDatabase[id];
-  res.redirect("/urls")
-});
-
-//make a post request so that when the submit button of the "make a new url" form is submitted, the user will be redirected to /urls/newId
-//the req.body will be equal to one kay-value pair where the key is equal to the "name" value of the form, which in this case if longURL
-app.post("/urls", (req, res) => {
-  const randomString = generateRandomString();
-  urlDatabase[randomString] = req.body.longURL;
-  res.redirect(`/urls/${randomString}`);
-});
-
-//make a post request to update the url
-//redirect client to /urls page to see updated url
-//update the database so that the id will be paired with the updated url
-app.post("/urls/:id", (req, res) => {
-  urlDatabase[req.params.id] = req.body.newURL;
-  res.redirect("/urls")
-})
-
 
 //make a get request to page to create a new tiny link
 app.get("/urls/new", (req, res) => {
@@ -87,16 +62,78 @@ app.get("/u/:id", (req, res) => {
 });
 
 app.get("/urls/:id", (req, res) => {
-  const templateVars = { 
-    id: req.params.id, 
+  const templateVars = {
+    id: req.params.id,
     longURL: urlDatabase[req.params.id],
-    username: req.cookies["username"] };
+    username: req.cookies["username"]
+  };
   res.render("urls_show", templateVars);
 });
 
 app.get("/urls.json", (req, res) => {
   res.json(urlDatabase);
 });
+
+//endpoint for a get request to the /register page
+app.get("/register", (req, res) => {
+  //since we use the header partial which includes values from our database, must have a templateVars
+  const templateVars = {
+    id: req.params.id,
+    longURL: urlDatabase[req.params.id],
+    username: req.cookies["username"]
+  };
+  res.render("register", templateVars)
+})
+
+//endpoint to handle a post request to /login
+app.post("/login", (req, res) => {
+  //input form body is saved in req.cookie as the form name "username"
+  res.cookie("username", req.body.username);
+  res.redirect("/urls");
+})
+
+//endpoint for post request to /register
+app.post("/register", (req, res) => {
+  const user = generateRandomString()
+    users[user] = {
+      id: user,
+      email: req.body.email,
+      password: req.body.password
+    }
+    res.cookie("user_id", user)
+    res.redirect("/urls")
+})
+
+//logout endpoint to clear username cookie
+app.post("/logout", (req, res) => {
+  res.clearCookie("username");
+  res.redirect("/urls")
+})
+
+//POST route that removes a URL resource
+app.post("/urls/:id/delete", (req, res) => {
+  //extract id we need to delete from the url of the request
+  const { id } = req.params;
+  delete urlDatabase[id];
+  res.redirect("/urls")
+});
+
+//make a post request so that when the submit button of the "make a new url" form is submitted, the user will be redirected to /urls/newId
+//the req.body will be equal to one kay-value pair where the key is equal to the "name" value of the form, which in this case if longURL
+app.post("/urls", (req, res) => {
+  const randomString = generateRandomString();
+  console.log(req.body)
+  urlDatabase[randomString] = req.body.longURL;
+  res.redirect(`/urls/${randomString}`);
+});
+
+//make a post request to update the url
+//redirect client to /urls page to see updated url
+//update the database so that the id will be paired with the updated url
+app.post("/urls/:id", (req, res) => {
+  urlDatabase[req.params.id] = req.body.newURL;
+  res.redirect("/urls")
+})
 
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}`);
