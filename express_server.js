@@ -22,7 +22,18 @@ const urlDatabase = {
   "9sm5xK": "http://www.google.com"
 };
 
-const users = {};
+const users = {
+  // userRandomID: {
+  //   id: "userRandomID",
+  //   email: "user@example.com",
+  //   password: "purple-monkey-dinosaur",
+  // },
+  // user2RandomID: {
+  //   id: "user2RandomID",
+  //   email: "user2@example.com",
+  //   password: "dishwasher-funk",
+  // },
+};
 
 app.get("/", (req, res) => {
   res.send("Hello!");
@@ -74,6 +85,15 @@ app.get("/register", (req, res) => {
   res.render("register", templateVars)
 })
 
+app.get("/login", (req, res) => {
+  const templateVars = {
+    id: req.params.id,
+    longURL: urlDatabase[req.params.id],
+    user: users[req.cookies["user_id"]]
+  };
+  res.render("login", templateVars)
+})
+
 //endpoint to handle a post request to /login
 app.post("/login", (req, res) => {
   //input form body is saved in req.cookie as the form name "username"
@@ -83,14 +103,26 @@ app.post("/login", (req, res) => {
 
 //endpoint for post request to /register
 app.post("/register", (req, res) => {
-  const RandomUserId = generateRandomString()
-    users[RandomUserId] = {
-      id: RandomUserId,
-      email: req.body.email,
-      password: req.body.password
-    }
-    res.cookie("user_id", RandomUserId)
-    res.redirect("/urls")
+  const randomUserId = generateRandomString()
+  users[randomUserId] = {
+    id: randomUserId,
+    email: req.body.email,
+    password: req.body.password
+  }
+  //assign value of the user_id linked to the cookie to a variable
+  const userCookie = req.cookies["user_id"];
+
+  //check if an email is already registered based on the cookie user_id.
+  //First, must check if there even is a cookie saved and then check if there is an email linked to it.
+  //Or else, if someone registers for the first time, there won't be a cookie and the code will look for an email for an undefined value
+  if (!users[randomUserId].email || !users[randomUserId].password) {
+    res.status(400).send("Email address and password cannot be empty");
+  } else if (users[userCookie] && users[userCookie].email) {
+    res.status(400).send("There is already an account with this email address");
+  }
+
+  res.cookie("user_id", randomUserId);
+  res.redirect("/urls");
 })
 
 //logout endpoint to clear username cookie
