@@ -1,5 +1,7 @@
 const express = require("express");
 const cookieParser = require("cookie-parser");
+const getUserByEmail = require("./helper_functions").getUserByEmail;
+const authenticateUser = require("./helper_functions").authenticateUser;
 const app = express();
 const PORT = 8080;
 
@@ -96,29 +98,34 @@ app.get("/login", (req, res) => {
 
 //endpoint to handle a post request to /login
 app.post("/login", (req, res) => {
-  //input form body is saved in req.cookie as the form name "username"
-  res.cookie("username", req.body.username);
-  res.redirect("/urls");
+
+  const { error, user } = authenticateUser(users, req.body.email, req.body.password);
+
+  if (error === "No user found") {
+    res.status(403).send("Account with that email address cannot be found");
+  } else if (error === "Password doesn't match") {
+    res.status(403).send("Password is incorrect");
+  } else {
+    res.cookie("user_id", user.id);
+    res.redirect("/urls");
+  }
 })
 
 //endpoint for post request to /register
 app.post("/register", (req, res) => {
   const randomUserId = generateRandomString()
+
+  //using the input form body, check if there is a user with that email
+  if (!req.body.email || !req.body.password) {
+    res.status(400).send("Email address and password cannot be empty");
+  } else if (getUserByEmail(users, req.body.email)) {
+    res.status(400).send("There is already an account with this email address");
+  }
+
   users[randomUserId] = {
     id: randomUserId,
     email: req.body.email,
     password: req.body.password
-  }
-  //assign value of the user_id linked to the cookie to a variable
-  const userCookie = req.cookies["user_id"];
-
-  //check if an email is already registered based on the cookie user_id.
-  //First, must check if there even is a cookie saved and then check if there is an email linked to it.
-  //Or else, if someone registers for the first time, there won't be a cookie and the code will look for an email for an undefined value
-  if (!users[randomUserId].email || !users[randomUserId].password) {
-    res.status(400).send("Email address and password cannot be empty");
-  } else if (users[userCookie] && users[userCookie].email) {
-    res.status(400).send("There is already an account with this email address");
   }
 
   res.cookie("user_id", randomUserId);
@@ -127,8 +134,8 @@ app.post("/register", (req, res) => {
 
 //logout endpoint to clear username cookie
 app.post("/logout", (req, res) => {
-  res.clearCookie("username");
-  res.redirect("/urls")
+  res.clearCookie("user_id");
+  res.redirect("/login")
 })
 
 //POST route that removes a URL resource
@@ -143,7 +150,6 @@ app.post("/urls/:id/delete", (req, res) => {
 //the req.body will be equal to one kay-value pair where the key is equal to the "name" value of the form, which in this case if longURL
 app.post("/urls", (req, res) => {
   const randomString = generateRandomString();
-  console.log(req.body)
   urlDatabase[randomString] = req.body.longURL;
   res.redirect(`/urls/${randomString}`);
 });
