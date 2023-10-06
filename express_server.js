@@ -1,6 +1,6 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
-const cookieParser = require("cookie-parser");
+const cookieSession = require("cookie-session");
 const { urlsForUser } = require("./helper_functions");
 const getUserByEmail = require("./helper_functions").getUserByEmail;
 const app = express();
@@ -17,34 +17,36 @@ const generateRandomString = function () {
 };
 
 app.set("view engine", "ejs");
-app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieSession({ //creates req.session
+  name: "session",
+  keys: ["gh3nyt5i65rua4t8hu"]
+}))
 
 const urlDatabase = {};
-
 const users = {};
 
 app.get("/", (req, res) => {
-  res.send("Hello!");
+  return res.send("Hello!");
 });
 
 //make a get request to main page of URLs list
 app.get("/urls", (req, res) => {
-  const userId = req.cookies["user_id"];
+  const userId = req.session.user_id;
   if (!userId) {
     return res.send("You must be logged in to use this feature")
   }
   const filteredDatabase = urlsForUser(urlDatabase, userId)
   const templateVars = {
     urls: filteredDatabase,
-    user: users[req.cookies["user_id"]]
+    user: users[req.session.user_id]
   };
   res.render("urls_index", templateVars);
 });
 
 //make a get request to page to create a new tiny link
 app.get("/urls/new", (req, res) => {
-  const userId = req.cookies["user_id"];
+  const userId = req.session.user_id;
 
   if (!userId) {
     return res.redirect("/login");
@@ -64,12 +66,12 @@ app.get("/u/:id", (req, res) => {
 });
 
 app.get("/urls/:id", (req, res) => {
-  const userId = req.cookies["user_id"];
+  const userId = req.session.user_id;
   const urlId = urlDatabase[req.params.id];
   if (!urlId) {
     return res.send("This url does not exist")
   }
-  if (!req.cookies["user_id"]) {
+  if (!req.session.user_id) {
     return res.send("You must be logged in to see this page")
   }
   if (userId !== urlId.userID) {
@@ -91,11 +93,11 @@ app.get("/urls.json", (req, res) => {
 app.get("/register", (req, res) => {
   //since we use the header partial which includes values from our database, must have a templateVars
   const templateVars = {
-    user: users[req.cookies["user_id"]]
+    user: users[req.session.user_id]
   };
 
-  if (!req.cookies["user_id"]) {
-    res.render("register", templateVars);
+  if (!req.session.user_id) {
+    return res.render("register", templateVars);
   }
   res.redirect("/urls");
 
@@ -103,11 +105,11 @@ app.get("/register", (req, res) => {
 
 app.get("/login", (req, res) => {
   const templateVars = {
-    user: users[req.cookies["user_id"]]
+    user: users[req.session.user_id]
   };
 
-  if (!req.cookies["user_id"]) {
-    res.render("login", templateVars);
+  if (!req.session.user_id) {
+    return res.render("login", templateVars);
   }
   res.redirect("/urls");
 
@@ -123,13 +125,8 @@ app.post("/login", (req, res) => {
     return res.status(400).send("Please enter an email and password")
   }
 
-  let foundUser = null;
-  for (let userId in users) {
-    const user = users[userId];
-    if (user.email === email) {
-      foundUser = user;
-    }
-  }
+  const foundUser = getUserByEmail(users, email)
+
   if (!foundUser) {
     return res.status(400).send("Account with that email address does not exist")
   }
@@ -138,7 +135,7 @@ app.post("/login", (req, res) => {
     return res.status(400).send("Incorrect password")
   }
 
-  res.cookie("user_id", foundUser.id);
+  req.session.user_id = foundUser.id
   res.redirect("/urls");
 })
 
@@ -149,10 +146,10 @@ app.post("/register", (req, res) => {
   const password = req.body.password;
   const hashedPassword = bcrypt.hashSync(password, 10);
 
-  //using the input form body, check if there is a user with that email
   if (!email || !password) {
     return res.status(400).send("Email address and password cannot be empty");
   }
+  //using the input form body, check if there is a user with that email
   if (getUserByEmail(users, email)) {
     return res.status(400).send("There is already an account with this email address");
   }
@@ -162,24 +159,24 @@ app.post("/register", (req, res) => {
     email: req.body.email,
     password: hashedPassword
   }
-  res.cookie("user_id", randomUserId);
+  req.session.user_id = randomUserId;
   res.redirect("/urls");
 })
 
 //logout endpoint to clear username cookie
 app.post("/logout", (req, res) => {
-  res.clearCookie("user_id");
+  req.session = null;
   res.redirect("/login")
 })
 
 //POST route that removes a URL resource
 app.post("/urls/:id/delete", (req, res) => {
-  const userId = req.cookies["user_id"];
+  const userId = req.session.user_id;
   const urlId = urlDatabase[req.params.id];
   if (!urlId) {
     return res.send("This url does not exist")
   }
-  if (!req.cookies["user_id"]) {
+  if (!req.session.user_id) {
     return res.send("You must be logged in to delete an entry")
   }
   if (userId !== urlId.userID) {
@@ -194,7 +191,7 @@ app.post("/urls/:id/delete", (req, res) => {
 //make a post request so that when the submit button of the "make a new url" form is submitted, the user will be redirected to /urls/newId
 //the req.body will be equal to one kay-value pair where the key is equal to the "name" value of the form, which in this case is longURL
 app.post("/urls", (req, res) => {
-  const userId = req.cookies["user_id"];
+  const userId = req.session.user_id;
 
   if (!userId) {
     return res.send("You must be logged in to use our services.");
@@ -202,7 +199,7 @@ app.post("/urls", (req, res) => {
   const randomStringId = generateRandomString();
   urlDatabase[randomStringId] = {
     longURL: req.body.longURL,
-    userID: req.cookies["user_id"]
+    userID: req.session.user_id
   }
   res.redirect(`/urls/${randomStringId}`);
 });
@@ -211,12 +208,12 @@ app.post("/urls", (req, res) => {
 //redirect client to /urls page to see updated url
 //update the database so that the id will be paired with the updated url
 app.post("/urls/:id", (req, res) => {
-  const userId = req.cookies["user_id"];
+  const userId = req.session.user_id;
   const urlId = urlDatabase[req.params.id];
   if (!urlId) {
     return res.send("This url does not exist")
   }
-  if (!req.cookies["user_id"]) {
+  if (!req.session.user_id) {
     return res.send("You must be logged in to see this page")
   }
   if (userId !== urlId.userID) {
