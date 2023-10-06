@@ -6,7 +6,7 @@ const getUserByEmail = require("./helper_functions").getUserByEmail;
 const app = express();
 const PORT = 8080;
 
-const generateRandomString = function () {
+const generateRandomString = function() {
   const alphanumericValues = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   let randomString = "";
   for (let i = 0; i < 6; i++) {
@@ -21,7 +21,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieSession({ //creates req.session
   name: "session",
   keys: ["gh3nyt5i65rua4t8hu"]
-}))
+}));
 
 const urlDatabase = {};
 const users = {};
@@ -34,9 +34,9 @@ app.get("/", (req, res) => {
 app.get("/urls", (req, res) => {
   const userId = req.session.user_id;
   if (!userId) {
-    return res.send("You must be logged in to use this feature")
+    return res.send("You must be logged in to use this feature");
   }
-  const filteredDatabase = urlsForUser(urlDatabase, userId)
+  const filteredDatabase = urlsForUser(urlDatabase, userId);
   const templateVars = {
     urls: filteredDatabase,
     user: users[req.session.user_id]
@@ -53,13 +53,13 @@ app.get("/urls/new", (req, res) => {
   }
   const templateVars = {
     user: users[userId]
-  }
-  res.render("urls_new", templateVars)
+  };
+  res.render("urls_new", templateVars);
 });
 
 app.get("/u/:id", (req, res) => {
   if (!urlDatabase[req.params.id]) {
-    return res.send("That shortened url does not exist")
+    return res.send("That shortened url does not exist");
   }
   const longURL = urlDatabase[req.params.id].longURL;
   res.redirect(longURL);
@@ -69,13 +69,13 @@ app.get("/urls/:id", (req, res) => {
   const userId = req.session.user_id;
   const urlId = urlDatabase[req.params.id];
   if (!urlId) {
-    return res.send("This url does not exist")
+    return res.send("This url does not exist");
   }
   if (!req.session.user_id) {
-    return res.send("You must be logged in to see this page")
+    return res.send("You must be logged in to see this page");
   }
   if (userId !== urlId.userID) {
-    return res.send("Only the account holder may view this page")
+    return res.send("Only the account holder may view this page");
   }
   const templateVars = {
     id: req.params.id,
@@ -100,8 +100,7 @@ app.get("/register", (req, res) => {
     return res.render("register", templateVars);
   }
   res.redirect("/urls");
-
-})
+});
 
 app.get("/login", (req, res) => {
   const templateVars = {
@@ -113,7 +112,7 @@ app.get("/login", (req, res) => {
   }
   res.redirect("/urls");
 
-})
+});
 
 //endpoint to handle a post request to /login
 app.post("/login", (req, res) => {
@@ -122,22 +121,22 @@ app.post("/login", (req, res) => {
   const password = req.body.password;
 
   if (!email || !password) {
-    return res.status(400).send("Please enter an email and password")
+    return res.status(400).send("Please enter an email and password");
   }
 
-  const foundUser = getUserByEmail(users, email)
+  const foundUser = getUserByEmail(users, email);
 
   if (!foundUser) {
-    return res.status(400).send("Account with that email address does not exist")
+    return res.status(400).send("Account with that email address does not exist");
   }
-  const result = bcrypt.compareSync(password, foundUser.password)
+  const result = bcrypt.compareSync(password, foundUser.password);
   if (!result) {
-    return res.status(400).send("Incorrect password")
+    return res.status(400).send("Incorrect password");
   }
 
-  req.session.user_id = foundUser.id
+  req.session.user_id = foundUser.id;
   res.redirect("/urls");
-})
+});
 
 //endpoint for post request to /register
 app.post("/register", (req, res) => {
@@ -158,34 +157,34 @@ app.post("/register", (req, res) => {
     id: randomUserId,
     email: req.body.email,
     password: hashedPassword
-  }
+  };
   req.session.user_id = randomUserId;
   res.redirect("/urls");
-})
+});
 
 //logout endpoint to clear username cookie
 app.post("/logout", (req, res) => {
   req.session = null;
-  res.redirect("/login")
-})
+  res.redirect("/login");
+});
 
 //POST route that removes a URL resource
 app.post("/urls/:id/delete", (req, res) => {
   const userId = req.session.user_id;
   const urlId = urlDatabase[req.params.id];
   if (!urlId) {
-    return res.send("This url does not exist")
+    return res.send("This url does not exist");
   }
   if (!req.session.user_id) {
-    return res.send("You must be logged in to delete an entry")
+    return res.send("You must be logged in to delete an entry");
   }
   if (userId !== urlId.userID) {
-    return res.send("Only the account holder may delete an entry")
+    return res.send("Only the account holder may delete an entry");
   }
   //extract id we need to delete from the url of the request
   const { id } = req.params;
   delete urlDatabase[id];
-  res.redirect("/urls")
+  res.redirect("/urls");
 });
 
 //make a post request so that when the submit button of the "make a new url" form is submitted, the user will be redirected to /urls/newId
@@ -200,7 +199,7 @@ app.post("/urls", (req, res) => {
   urlDatabase[randomStringId] = {
     longURL: req.body.longURL,
     userID: req.session.user_id
-  }
+  };
   res.redirect(`/urls/${randomStringId}`);
 });
 
@@ -211,17 +210,17 @@ app.post("/urls/:id", (req, res) => {
   const userId = req.session.user_id;
   const urlId = urlDatabase[req.params.id];
   if (!urlId) {
-    return res.send("This url does not exist")
+    return res.send("This url does not exist");
   }
   if (!req.session.user_id) {
-    return res.send("You must be logged in to see this page")
+    return res.send("You must be logged in to see this page");
   }
   if (userId !== urlId.userID) {
-    return res.send("Only the account holder may view this page")
+    return res.send("Only the account holder may view this page");
   }
   urlDatabase[req.params.id].longURL = req.body.newURL;
-  res.redirect("/urls")
-})
+  res.redirect("/urls");
+});
 
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}`);
