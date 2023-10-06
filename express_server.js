@@ -20,8 +20,14 @@ app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
 const urlDatabase = {
-  "b2xVn2": "http://www.lighthouselabs.ca",
-  "9sm5xK": "http://www.google.com"
+  b6UTxQ: {
+    longURL: "https://www.tsn.ca",
+    userID: "aJ48lW",
+  },
+  i3BoGr: {
+    longURL: "https://www.google.ca",
+    userID: "aJ48lW",
+  },
 };
 
 const users = {
@@ -47,26 +53,37 @@ app.get("/urls", (req, res) => {
     urls: urlDatabase,
     user: users[req.cookies["user_id"]]
   };
+  console.log("DATABASE", urlDatabase)
   res.render("urls_index", templateVars);
 });
 
 //make a get request to page to create a new tiny link
 app.get("/urls/new", (req, res) => {
-  const templateVars = {
-    user: users[req.cookies["user_id"]]
+  const userId = req.cookies["user_id"];
+
+  if (!userId) {
+    return res.redirect("/login");
+  } else {
+    const templateVars = {
+      user: users[req.cookies["user_id"]]
+    }
+    res.render("urls_new", templateVars)
   }
-  res.render("urls_new", templateVars);
 });
 
 app.get("/u/:id", (req, res) => {
-  const longURL = urlDatabase[req.params.id];
-  res.redirect(longURL);
+  if (!urlDatabase[req.params.id]) {
+    return res.send("That shortened url does not exist")
+  } else {
+    const longURL = urlDatabase[req.params.id].longURL;
+    res.redirect(longURL);
+  }
 });
 
 app.get("/urls/:id", (req, res) => {
   const templateVars = {
     id: req.params.id,
-    longURL: urlDatabase[req.params.id],
+    longURL: urlDatabase[req.params.id].longURL,
     user: users[req.cookies["user_id"]]
   };
   res.render("urls_show", templateVars);
@@ -80,31 +97,40 @@ app.get("/urls.json", (req, res) => {
 app.get("/register", (req, res) => {
   //since we use the header partial which includes values from our database, must have a templateVars
   const templateVars = {
-    id: req.params.id,
-    longURL: urlDatabase[req.params.id],
     user: users[req.cookies["user_id"]]
   };
-  res.render("register", templateVars)
+
+  if (!req.cookies["user_id"]) {
+    res.render("register", templateVars);
+  } else {
+    res.redirect("/urls");
+  }
 })
 
 app.get("/login", (req, res) => {
   const templateVars = {
-    id: req.params.id,
-    longURL: urlDatabase[req.params.id],
     user: users[req.cookies["user_id"]]
   };
-  res.render("login", templateVars)
+
+  if (!req.cookies["user_id"]) {
+    res.render("login", templateVars);
+  } else {
+    res.redirect("/urls");
+  }
 })
 
 //endpoint to handle a post request to /login
 app.post("/login", (req, res) => {
 
-  const { error, user } = authenticateUser(users, req.body.email, req.body.password);
+  const email = req.body.email;
+  const password = req.body.password;
+
+  const { error, user } = authenticateUser(users, email, password);
 
   if (error === "No user found") {
-    res.status(403).send("Account with that email address cannot be found");
+    return res.status(403).send("Account with that email address cannot be found");
   } else if (error === "Password doesn't match") {
-    res.status(403).send("Password is incorrect");
+    return res.status(403).send("Password is incorrect");
   } else {
     res.cookie("user_id", user.id);
     res.redirect("/urls");
@@ -113,13 +139,15 @@ app.post("/login", (req, res) => {
 
 //endpoint for post request to /register
 app.post("/register", (req, res) => {
-  const randomUserId = generateRandomString()
+  const randomUserId = generateRandomString();
+  const email = req.body.email;
+  const password = req.body.password;
 
   //using the input form body, check if there is a user with that email
-  if (!req.body.email || !req.body.password) {
-    res.status(400).send("Email address and password cannot be empty");
-  } else if (getUserByEmail(users, req.body.email)) {
-    res.status(400).send("There is already an account with this email address");
+  if (!email || !password) {
+    return res.status(400).send("Email address and password cannot be empty");
+  } else if (getUserByEmail(users, email)) {
+    return res.status(400).send("There is already an account with this email address");
   }
 
   users[randomUserId] = {
@@ -147,18 +175,28 @@ app.post("/urls/:id/delete", (req, res) => {
 });
 
 //make a post request so that when the submit button of the "make a new url" form is submitted, the user will be redirected to /urls/newId
-//the req.body will be equal to one kay-value pair where the key is equal to the "name" value of the form, which in this case if longURL
+//the req.body will be equal to one kay-value pair where the key is equal to the "name" value of the form, which in this case is longURL
 app.post("/urls", (req, res) => {
-  const randomString = generateRandomString();
-  urlDatabase[randomString] = req.body.longURL;
-  res.redirect(`/urls/${randomString}`);
+  const userId = req.cookies["user_id"];
+
+  if (!userId) {
+    return res.send("You must be logged in to use our services.");
+  } else {
+    const randomStringId = generateRandomString();
+    urlDatabase[randomStringId] = {
+      longURL: req.body.longURL,
+      userID: req.cookies["user_id"]
+    } 
+    console.log("URL DATABASE", urlDatabase)
+    res.redirect(`/urls/${randomStringId}`);
+  }
 });
 
 //make a post request to update the url
 //redirect client to /urls page to see updated url
 //update the database so that the id will be paired with the updated url
 app.post("/urls/:id", (req, res) => {
-  urlDatabase[req.params.id] = req.body.newURL;
+  urlDatabase[req.params.id].longURL = req.body.newURL;
   res.redirect("/urls")
 })
 
