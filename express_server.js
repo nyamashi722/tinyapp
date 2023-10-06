@@ -1,5 +1,6 @@
 const express = require("express");
 const cookieParser = require("cookie-parser");
+const { urlsForUser } = require("./helper_functions");
 const getUserByEmail = require("./helper_functions").getUserByEmail;
 const authenticateUser = require("./helper_functions").authenticateUser;
 const app = express();
@@ -19,29 +20,9 @@ app.set("view engine", "ejs");
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
-const urlDatabase = {
-  b6UTxQ: {
-    longURL: "https://www.tsn.ca",
-    userID: "aJ48lW",
-  },
-  i3BoGr: {
-    longURL: "https://www.google.ca",
-    userID: "aJ48lW",
-  },
-};
+const urlDatabase = {};
 
-const users = {
-  // userRandomID: {
-  //   id: "userRandomID",
-  //   email: "user@example.com",
-  //   password: "purple-monkey-dinosaur",
-  // },
-  // user2RandomID: {
-  //   id: "user2RandomID",
-  //   email: "user2@example.com",
-  //   password: "dishwasher-funk",
-  // },
-};
+const users = {};
 
 app.get("/", (req, res) => {
   res.send("Hello!");
@@ -49,12 +30,17 @@ app.get("/", (req, res) => {
 
 //make a get request to main page of URLs list
 app.get("/urls", (req, res) => {
-  const templateVars = {
-    urls: urlDatabase,
-    user: users[req.cookies["user_id"]]
-  };
-  console.log("DATABASE", urlDatabase)
-  res.render("urls_index", templateVars);
+  const userId = req.cookies["user_id"];
+  if (!userId) {
+    return res.send("You must be logged in to use this feature")
+  } else {
+    const filteredDatabase = urlsForUser(urlDatabase, userId)
+    const templateVars = {
+      urls: filteredDatabase,
+      user: users[req.cookies["user_id"]]
+    };
+    res.render("urls_index", templateVars);
+  }
 });
 
 //make a get request to page to create a new tiny link
@@ -65,7 +51,7 @@ app.get("/urls/new", (req, res) => {
     return res.redirect("/login");
   } else {
     const templateVars = {
-      user: users[req.cookies["user_id"]]
+      user: users[userId]
     }
     res.render("urls_new", templateVars)
   }
@@ -81,12 +67,22 @@ app.get("/u/:id", (req, res) => {
 });
 
 app.get("/urls/:id", (req, res) => {
-  const templateVars = {
-    id: req.params.id,
-    longURL: urlDatabase[req.params.id].longURL,
-    user: users[req.cookies["user_id"]]
-  };
-  res.render("urls_show", templateVars);
+  const userId = req.cookies["user_id"];
+  const urlId = urlDatabase[req.params.id];
+  if (!urlId) {
+    return res.send("This url does not exist")
+  } else if (!req.cookies["user_id"]) {
+    return res.send("You must be logged in to see this page")
+  } else if (userId !== urlId.userID) {
+    return res.send("Only the account holder may view this page")
+  } else {
+    const templateVars = {
+      id: req.params.id,
+      longURL: urlId.longURL,
+      user: users[userId]
+    };
+    return res.render("urls_show", templateVars);
+  }
 });
 
 app.get("/urls.json", (req, res) => {
@@ -168,10 +164,20 @@ app.post("/logout", (req, res) => {
 
 //POST route that removes a URL resource
 app.post("/urls/:id/delete", (req, res) => {
+  const userId = req.cookies["user_id"];
+  const urlId = urlDatabase[req.params.id];
+  if (!urlId) {
+    return res.send("This url does not exist")
+  } else if (!req.cookies["user_id"]) {
+    return res.send("You must be logged in to delete an entry")
+  } else if (userId !== urlId.userID) {
+    return res.send("Only the account holder may delete an entry")
+  } else {
   //extract id we need to delete from the url of the request
   const { id } = req.params;
   delete urlDatabase[id];
   res.redirect("/urls")
+  }
 });
 
 //make a post request so that when the submit button of the "make a new url" form is submitted, the user will be redirected to /urls/newId
@@ -186,8 +192,7 @@ app.post("/urls", (req, res) => {
     urlDatabase[randomStringId] = {
       longURL: req.body.longURL,
       userID: req.cookies["user_id"]
-    } 
-    console.log("URL DATABASE", urlDatabase)
+    }
     res.redirect(`/urls/${randomStringId}`);
   }
 });
@@ -196,8 +201,18 @@ app.post("/urls", (req, res) => {
 //redirect client to /urls page to see updated url
 //update the database so that the id will be paired with the updated url
 app.post("/urls/:id", (req, res) => {
-  urlDatabase[req.params.id].longURL = req.body.newURL;
-  res.redirect("/urls")
+  const userId = req.cookies["user_id"];
+  const urlId = urlDatabase[req.params.id];
+  if (!urlId) {
+    return res.send("This url does not exist")
+  } else if (!req.cookies["user_id"]) {
+    return res.send("You must be logged in to see this page")
+  } else if (userId !== urlId.userID) {
+    return res.send("Only the account holder may view this page")
+  } else {
+    urlDatabase[req.params.id].longURL = req.body.newURL;
+    res.redirect("/urls")
+  }
 })
 
 app.listen(PORT, () => {
